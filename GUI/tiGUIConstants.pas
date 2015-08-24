@@ -10,7 +10,9 @@ uses
 const
   // RGB color values
   clPaleBlue    = TColor($FEF5E9);
+  clPaleRed     = TColor($D2D2F0);
   clError       = clYellow;
+  clReadOnly    = clBtnFace;
 
   // Default values
   cuiDefaultLabelWidth    = 80;
