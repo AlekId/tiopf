@@ -66,6 +66,8 @@ type
     procedure CheckFieldNames;
     // Check model valid and allow view to change behavior
     procedure TestIfValid;
+    // Set the GUI in a  clear state reagrdless Subject state and content
+    procedure ClearGUI; virtual;
     // If GUI and Object and fieldnames are assigned, calls SetupGUIandObject.
     procedure CheckSetupGUIandObject;
     // Set up GUI and Object. Does nothing by default
@@ -74,6 +76,8 @@ type
     procedure DoOnChange(Sender: TObject); virtual;
     // Returns FSubject by default.
     function GetSubject: TtiObject; virtual;
+    // Update GUI visual apparence
+    procedure UpdateGUI; virtual;
     // Do something with errors.
     procedure UpdateGUIValidStatus(pErrors: TtiObjectErrors); virtual;
     // Check whether data and GUI property are OK. Not used in this class
@@ -109,6 +113,9 @@ type
     function GetSelectedObject: TtiObject; virtual;
     // Does nothing by default
     procedure SetSelectedObject(const AValue: TtiObject); virtual;
+
+    // Usefull in decendants to disable OnChange notification
+    property SettingUp: boolean read FSettingUp write FSettingUp;
   public
     constructor Create; override;
     constructor CreateCustom(AView: TComponent; ASubject: TtiObject; AFieldName: string; AGUIFieldName: string); overload; virtual;
@@ -516,11 +523,16 @@ end;
 
 procedure TtiMediatorView.GUIChanged;
 begin
-  if not FSettingUp then
+  if not FSettingUp and Assigned(FSubject) then
   begin
     GUIToObject;
     TestIfValid;
   end;
+end;
+
+procedure TtiMediatorView.UpdateGUI;
+begin
+  // Do nothing. Override in descendants.
 end;
 
 procedure TtiMediatorView.UpdateGUIValidStatus(pErrors: TtiObjectErrors);
@@ -588,6 +600,11 @@ procedure TtiMediatorView.CheckSetupGUIandObject;
 begin
   if Assigned(Subject) and Assigned(FView) then
     SetupGUIandObject;
+end;
+
+procedure TtiMediatorView.ClearGUI;
+begin
+  // Do nothing. Override in descendants.
 end;
 
 function TtiMediatorView.View: TComponent;
@@ -688,6 +705,16 @@ begin
   CheckSetupGUIAndObject;
   if (not FSettingUp) and Assigned(FSubject) and FActive then
     Update(FSubject,noChanged);
+  if not Assigned(FSubject) then
+  begin
+    UpdateGUI;
+    SettingUp := true;
+    try
+      ClearGUI;
+    finally
+      SettingUp := false;
+    end;
+  end;
 end;
 
 procedure TtiMediatorView.Update(ASubject: TtiObject; AOperation: TNotifyOperation; AData: TtiObject);
@@ -698,6 +725,7 @@ begin
     if (AOperation = noChanged) and Active then
     begin
       ObjectToGUI;
+      TestIfValid;
     end
     else if (AOperation = noFree) then
       FSubject := nil;
@@ -761,7 +789,13 @@ begin
     if Active then
       SetObjectUpdateMoment(FObjectUpdateMoment)
     else
+    begin
       SetObjectUpdateMoment(ouNone);
+
+      UpdateGUI;
+      // Update moment was set to ouNone so changes to the view will not trigger DoChange method
+      ClearGUI;
+    end;
   end;
 end;
 
@@ -812,21 +846,24 @@ procedure TtiMediatorView.GUIToObject;
 var
   B: Boolean;
 begin
-  if (FCopyingCount > 0) and (not AllowRecursiveCopy) then
-    Exit;
-  Inc(FCopyingCount);
-  try
-    B := False;
-    if Assigned(FOnBeforeGUIToObject) then
-      FOnBeforeGUIToObject(Self, View, Subject, B);
-    if not B then
-    begin
-      DoGUIToObject;
-      if Assigned(FOnAfterGUIToObject) then
-        FOnAfterGUIToObject(Self, View, Subject);
+  if Assigned(FSubject) then
+  begin
+    if (FCopyingCount > 0) and (not AllowRecursiveCopy) then
+      Exit;
+    Inc(FCopyingCount);
+    try
+      B := False;
+      if Assigned(FOnBeforeGUIToObject) then
+        FOnBeforeGUIToObject(Self, View, Subject, B);
+      if not B then
+      begin
+        DoGUIToObject;
+        if Assigned(FOnAfterGUIToObject) then
+          FOnAfterGUIToObject(Self, View, Subject);
+      end;
+    finally
+      Dec(FCopyingCount);
     end;
-  finally
-    Dec(FCopyingCount);
   end;
 end;
 
@@ -834,17 +871,20 @@ procedure TtiMediatorView.ObjectToGUI(const AForceUpdate: boolean);
 var
   B: Boolean;
 begin
-  if (FCopyingCount > 0) and (not AllowRecursiveCopy) and (not AForceUpdate) then
-    Exit;
-  Inc(FCopyingCount);
-  try
-    B := False;
-    if Assigned(FOnObjectToGUI) then
-      FOnObjectToGUI(Self, Subject, View, B);
-    if not B then
-      DoObjectToGUI;
-  finally
-    Dec(FCopyingCount);
+  if Assigned(FSubject) then
+  begin
+    if (FCopyingCount > 0) and (not AllowRecursiveCopy) and (not AForceUpdate) then
+      Exit;
+    Inc(FCopyingCount);
+    try
+      B := False;
+      if Assigned(FOnObjectToGUI) then
+        FOnObjectToGUI(Self, Subject, View, B);
+      if not B then
+        DoObjectToGUI;
+    finally
+      Dec(FCopyingCount);
+    end;
   end;
 end;
 
