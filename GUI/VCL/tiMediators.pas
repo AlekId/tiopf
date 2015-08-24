@@ -36,9 +36,11 @@ type
     FViewColor: TColor;
     FViewHint: string;
     FViewErrorColor: TColor;
+    FViewReadOnlyColor: TColor;
     procedure   SetViewErrorVisible(const AValue: boolean);
     procedure   SetViewErrorColor(const AValue: TColor);
     procedure   SetViewState(const AColor: TColor; const AHint: string);
+    procedure   SetViewReadonlyColor(const AValue: TColor);
   protected
     function    GetCurrentControlColor: TColor; virtual;
     procedure   UpdateGUIValidStatus(pErrors: TtiObjectErrors); override;
@@ -46,6 +48,7 @@ type
     constructor Create; override;
     property    ViewErrorVisible: boolean read FViewErrorVisible write SetViewErrorVisible;
     property    ViewErrorColor: TColor read FViewErrorColor write SetViewErrorColor;
+    property    ViewReadOnlyColor: TColor read FViewReadOnlyColor write SetViewReadonlyColor;
     procedure   SetView(const AValue: TComponent); override;
     function    View: TControl; reintroduce;
     class function ComponentClass: TClass; override;
@@ -55,15 +58,17 @@ type
   { Base class to handle TCustomEdit controls (TEdit, TMemo, TLabeledEdit) }
   TtiCustomEditMediatorView = class(TtiControlMediatorView)
   private
-    FControlReadOnlyColor: TColor;
-    procedure   SetControlReadOnlyColor(const AValue: TColor);
+//    FControlReadOnlyColor: TColor;  //Moved to TtiControlMediatorView class by Carlo Marona 2012-09-07
+//    procedure   SetControlReadOnlyColor(const AValue: TColor); //Moved to TtiControlMediatorView class by Carlo Marona 2012-09-07
   protected
+    procedure   ClearGUI; override;  // Added by Carlo Marona 2014-03-27
     function    GetCurrentControlColor: TColor; override;
     procedure   SetupGUIandObject; override;
     procedure   SetObjectUpdateMoment(const AValue: TtiObjectUpdateMoment); override;
+    procedure   UpdateGUI; override; // Added by Carlo Marona 2014-03-27
   public
     constructor Create; override;
-    property    ControlReadOnlyColor: TColor read FControlReadOnlyColor write SetControlReadOnlyColor;
+//    property    ControlReadOnlyColor: TColor read FControlReadOnlyColor write SetControlReadOnlyColor; //Moved to TtiControlMediatorView class by Carlo Marona 2012-09-07
     function    View: TCustomEdit; reintroduce;
     class function ComponentClass: TClass; override;
   end;
@@ -285,6 +290,7 @@ begin
   inherited;
   FViewErrorVisible := true;
   FViewErrorColor := clError;
+  FViewReadOnlyColor := clReadonly;
 end;
 
 class function TtiControlMediatorView.ComponentClass: TClass;
@@ -343,6 +349,15 @@ begin
   end;
 end;
 
+procedure TtiControlMediatorView.SetViewReadonlyColor(const AValue: TColor);
+begin
+  if AValue <> FViewReadOnlyColor then
+  begin
+    FViewReadOnlyColor := AValue;
+    TestIfValid; // Update view
+  end;
+end;
+
 procedure TtiControlMediatorView.UpdateGUIValidStatus(pErrors: TtiObjectErrors);
 var
   oError: TtiObjectError;
@@ -379,8 +394,16 @@ end;
 constructor TtiCustomEditMediatorView.Create;
 begin
   inherited Create;
-  FControlReadOnlyColor := clWindow;
+//  FControlReadOnlyColor := clReadonly;
   GUIFieldName := 'Text';
+end;
+
+procedure TtiCustomEditMediatorView.ClearGUI;
+begin
+  inherited;
+
+  if View <> nil then
+    View.Clear;
 end;
 
 class function TtiCustomEditMediatorView.ComponentClass: TClass;
@@ -391,7 +414,8 @@ end;
 function TtiCustomEditMediatorView.GetCurrentControlColor: TColor;
 begin
   if THackCustomEdit(View).ReadOnly then
-    result := ColorToRGB(ControlReadOnlyColor)
+//    result := ColorToRGB(ControlReadOnlyColor)
+    result := ColorToRGB(ViewReadOnlyColor)
   else
     result := inherited GetCurrentControlColor;
 end;
@@ -401,15 +425,15 @@ begin
   result := TCustomEdit(inherited View);
 end;
 
-procedure TtiCustomEditMediatorView.SetControlReadOnlyColor(
-  const AValue: TColor);
-begin
-  if AValue <> FControlReadOnlyColor then
-  begin
-    FControlReadOnlyColor := AValue;
-    TestIfValid; // Update view
-  end;
-end;
+//procedure TtiCustomEditMediatorView.SetControlReadOnlyColor(
+//  const AValue: TColor);
+//begin
+//  if AValue <> FControlReadOnlyColor then
+//  begin
+//    FControlReadOnlyColor := AValue;
+//    TestIfValid; // Update view
+//  end;
+//end;
 
 procedure TtiCustomEditMediatorView.SetObjectUpdateMoment(
   const AValue: TtiObjectUpdateMoment);
@@ -435,6 +459,16 @@ begin
   if Subject.GetFieldBounds(FieldName,Mi,Ma) and (Ma>0) then
     THackCustomEdit(View).MaxLength := Ma;
 end;
+
+procedure TtiCustomEditMediatorView.UpdateGUI;
+begin
+  inherited;
+
+  if View <> nil then
+    SetViewState(GetCurrentControlColor, FViewHint);
+end;
+
+
 
 { TtiEditMediatorView }
 
@@ -756,11 +790,28 @@ begin
       EditOperation then
   begin
     RefreshList;
+    ObjectToGUI;
     TestIfValid;
   end
   else
     inherited Update(ASubject, AOperation, AData);
 end;
+
+//procedure TtiDynamicComboBoxMediatorView.Update(ASubject: TtiObject; AOperation: TNotifyOperation;
+//  AData: TtiObject);
+//begin
+//  inherited;
+//
+//  if ASubject = ValueList then
+//  begin
+//    if (AOperation = noChanged) and Active then
+//    begin
+//      RefreshList;
+//      ObjectToGUI;
+//      TestIfValid;
+//    end
+//  end;
+//end;
 
 
 { TtiCheckBoxMediatorView }
