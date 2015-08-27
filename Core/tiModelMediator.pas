@@ -106,7 +106,7 @@ type
   protected
     function CreatePropertyDefs: TtiPropertyLinkDefs; virtual;
     function CreateProperty(const AFieldName: string; const AGUIComponent: TComponent; const ADisplayFieldName: string; AGUIFieldName: string = ''): TtiPropertyLinkDef; virtual;
-    procedure AfterPropertyCreated(ADef: TtiPropertyLinkDef);
+//    procedure AfterPropertyCreated(ADef: TtiPropertyLinkDef);
     procedure CheckSubject;
     procedure CheckInactive;
     procedure CheckMediator(ADef: TtiPropertyLinkDef);
@@ -672,14 +672,14 @@ begin
   Result.Component := AGUICOmponent;
 end;
 
-procedure TtiModelMediator.AfterPropertyCreated(ADef: TtiPropertyLinkDef);
-begin
-  if Assigned(FSubject) then
-  begin
-    CheckMediator(ADef);
-    ADef.CreateMediator;
-  end;
-end;
+//procedure TtiModelMediator.AfterPropertyCreated(ADef: TtiPropertyLinkDef);
+//begin
+//  if Assigned(FSubject) then
+//  begin
+//    CheckMediator(ADef);
+//    ADef.CreateMediator;
+//  end;
+//end;
 
 procedure TtiModelMediator.Assign(Source: TPersistent);
 var
@@ -697,15 +697,21 @@ end;
 
 function TtiModelMediator.AddProperty(const AFieldName: string; const AGUIComponent: TComponent; const ADisplayFieldName: string = ''; AGUIFieldName: string = ''): TtiPropertyLinkDef;
 begin
+  if FActive then
+    MediatorError(self, SErrActive);
+
   Result := CreateProperty(AFieldName, AGUIComponent, ADisplayFieldName, AGUIFieldName);
-  AfterPropertyCreated(Result);
+//  AfterPropertyCreated(Result);
 end;
 
 function TtiModelMediator.AddComposite(const ADisplayNames: string; const AGUIComponent: TComponent): TtiPropertyLinkDef;
 begin
+  if FActive then
+    MediatorError(self, SErrActive);
+
   Result           := CreateProperty(ADisplayNames, AGUIComponent, '');
   Result.Composite := True;
-  AfterPropertyCreated(Result);
+//  AfterPropertyCreated(Result);
 end;
 
 function TtiModelMediator.FindByComponent(AComponent: TComponent): TtiPropertyLinkDef;
